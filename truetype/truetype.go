@@ -15,7 +15,7 @@
 //
 // To measure a TrueType font in ideal FUnit space, use scale equal to
 // font.FUnitsPerEm().
-package truetype // import "github.com/golang/freetype/truetype"
+package truetype // import "github.com/mooncaker816/freetype/truetype"
 
 import (
 	"fmt"
@@ -125,7 +125,8 @@ func readTable(ttf []byte, offsetLength []byte) ([]byte, error) {
 // considered.
 func parseSubtables(table []byte, name string, offset, size int, pred func([]byte) bool) (
 	bestOffset int, bestPID uint32, retErr error) {
-
+	var uBestOffset, mBestOffset int
+	var uBestPID, mBestPID uint32
 	if len(table) < 4 {
 		return 0, 0, FormatError(name + " too short")
 	}
@@ -141,22 +142,29 @@ func parseSubtables(table []byte, name string, offset, size int, pred func([]byt
 		// We read the 16-bit Platform ID and 16-bit Platform Specific ID as a single uint32.
 		// All values are big-endian.
 		pidPsid := u32(table, offset)
-		// We prefer the Unicode cmap encoding. Failing to find that, we fall
-		// back onto the Microsoft cmap encoding.
+		// We prefer the Unicode cmap encoding(4>3). Failing to find that, we fall
+		// back onto the Microsoft cmap encoding(10>1>0).
 		if pidPsid == unicodeEncodingBMPOnly || pidPsid == unicodeEncodingFull {
-			bestOffset, bestPID, ok = offset, pidPsid>>16, true
-			break
-
+			if pidPsid > uBestPID {
+				uBestOffset, uBestPID, ok = offset, pidPsid>>16, true
+			}
 		} else if pidPsid == microsoftSymbolEncoding ||
 			pidPsid == microsoftUCS2Encoding ||
 			pidPsid == microsoftUCS4Encoding {
-
-			bestOffset, bestPID, ok = offset, pidPsid>>16, true
-			// We don't break out of the for loop, so that Unicode can override Microsoft.
+			if pidPsid > mBestPID {
+				mBestOffset, mBestPID, ok = offset, pidPsid>>16, true
+			}
 		}
 	}
 	if !ok {
 		return 0, 0, UnsupportedError(name + " encoding")
+	}
+	if uBestOffset > 0 && uBestPID > 0 {
+		bestOffset = uBestOffset
+		bestPID = uBestPID
+	} else {
+		bestOffset = mBestOffset
+		bestPID = mBestPID
 	}
 	return bestOffset, bestPID, nil
 }
