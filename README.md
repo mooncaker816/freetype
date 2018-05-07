@@ -2,7 +2,7 @@
 
 This is a clone repo from golang/freetype with some special changes.
 
-1. search cmap subtables in below order so that to ensure always get as many as characters
+1. search cmap subtables in below order so that to ensure always get characters as many as possible
 
 platformID | platformSpecificID | Description
 -----------|--------------------|--------
